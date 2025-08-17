@@ -1,23 +1,20 @@
-# Use Node, then install ffmpeg via apt
-FROM node:18-bullseye-slim
+FROM node:20-slim
 
 # Install ffmpeg
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install deps first (better caching)
-COPY package.json package-lock.json* ./
-RUN npm install --omit=dev
+# Install deps with a clean, repeatable install
+COPY package*.json ./
+RUN npm ci --omit=dev
 
-# Copy app
+# Copy source
 COPY . .
 
-# Create folders used at runtime
-RUN mkdir -p uploads public
-
 ENV NODE_ENV=production
+ENV PORT=3000
 EXPOSE 3000
+
 CMD ["npm", "start"]
