@@ -1,49 +1,49 @@
-// server.js
-// Simple Express API: POST /convert (multipart) → AMR to M4A
-
 const express = require("express");
 const fileUpload = require("express-fileupload");
 const ffmpeg = require("fluent-ffmpeg");
-const ffmpegInstaller = require("@ffmpeg-installer/ffmpeg");
+let ffmpegPath;
+
+// Prefer system ffmpeg if present (works with Docker path B), otherwise use installer.
+try {
+  // If system ffmpeg exists in PATH, this will be used automatically.
+  // If not, fall back to installer binary.
+  const ffmpegInstaller = require("@ffmpeg-installer/ffmpeg");
+  ffmpegPath = ffmpegInstaller.path;
+} catch (_) {
+  ffmpegPath = "ffmpeg";
+}
+ffmpeg.setFfmpegPath(ffmpegPath);
+
 const { v4: uuidv4 } = require("uuid");
 const fs = require("fs");
 const path = require("path");
 
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
-
 const app = express();
-
-// Paths for converted files
 const PUBLIC_DIR = path.join(__dirname, "public");
 const CONVERTED_DIR = path.join(PUBLIC_DIR, "converted");
 if (!fs.existsSync(CONVERTED_DIR)) fs.mkdirSync(CONVERTED_DIR, { recursive: true });
 
-// Serve converted files publicly
 app.use("/files", express.static(CONVERTED_DIR));
 
-// Enable file uploads
 app.use(
   fileUpload({
     useTempFiles: true,
     tempFileDir: "/tmp",
     createParentPath: true,
+    limits: { fileSize: 100 * 1024 * 1024 }
   })
 );
 
-// Health check
-app.get("/health", (req, res) => {
-  res.json({ ok: true, message: "FFmpeg API healthy" });
-});
+app.get("/health", (_req, res) => res.json({ ok: true, ffmpegPath }));
 
-// Convert endpoint
 app.post("/convert", async (req, res) => {
   try {
     if (!req.files || !req.files.file) {
       return res.status(400).json({ ok: false, error: "Missing 'file' upload." });
     }
-
     const uploaded = req.files.file;
-    if (!/\.amr$/i.test(uploaded.name)) {
+    const name = uploaded.name || "audio.amr";
+    if (!/\.amr$/i.test(name)) {
       return res.status(400).json({ ok: false, error: "Only .amr input is supported." });
     }
 
@@ -62,15 +62,10 @@ app.post("/convert", async (req, res) => {
     });
 
     const publicUrl = `${req.protocol}://${req.get("host")}/files/${outName}`;
-    res.json({
-      ok: true,
-      input: uploaded.name,
-      output: outName,
-      m4a_url: publicUrl,
-    });
+    res.json({ ok: true, input: name, output: outName, m4a_url: publicUrl });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: err.message || "Conversion failed." });
   }
 });
 
