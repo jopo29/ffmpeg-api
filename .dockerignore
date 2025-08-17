@@ -1,2 +1,4 @@
 node_modules
-public/converted/*
+npm-debug.log
+uploads
+public
