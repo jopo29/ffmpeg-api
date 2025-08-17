@@ -1,14 +1,16 @@
 {
-  "name": "ffmpeg-api",
+  "name": "amr-to-m4a-api",
   "version": "1.0.0",
   "main": "server.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "express-fileupload": "^1.4.0",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "express": "^4.19.2",
+    "express-fileupload": "^1.5.1",
     "fluent-ffmpeg": "^2.1.2",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.1"
   }
 }
